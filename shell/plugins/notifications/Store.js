@@ -239,13 +239,15 @@ function dropLive(entries, key) {
 }
 
 // Stored rows, oldest first, keeping only the newest per app and stack tag:
-// a later message under a tag replaced the earlier ones.
+// a later message under a tag replaced the earlier ones. The pair is encoded
+// as JSON, since either half may hold any character a joiner would.
 function newestPerStackTag(entries) {
+  var stackOf = function(entry) { return JSON.stringify([entry.app, entry.stackTag]) }
   var last = {}
   for (var i = 0; i < entries.length; i++)
-    if (entries[i] && entries[i].stackTag) last[entries[i].app + "\n" + entries[i].stackTag] = i
+    if (entries[i] && entries[i].stackTag) last[stackOf(entries[i])] = i
   return entries.filter(function(entry, i) {
-    return !entry || !entry.stackTag || last[entry.app + "\n" + entry.stackTag] === i
+    return !entry || !entry.stackTag || last[stackOf(entry)] === i
   })
 }
 

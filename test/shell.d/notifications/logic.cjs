@@ -332,7 +332,7 @@ function runIn(scope, ...names) {
 // signals, the deferred event loop and external effects are faked.
 const capacityFunctions = ['pinDeckDisplay', 'showsOn', 'fullscreenOn',
   'durationFor', 'liveCount', 'reserveLive', 'releaseLive',
-  'nextKey', 'rowIndexFor', 'keyForOriginal', 'keyForStackTag', 'handleNotification', 'watchNotification', 'showRow', 'release', 'closeToast',
+  'nextKey', 'rowIndexFor', 'keyForOriginal', 'stackIdentityOf', 'keyForStackTag', 'handleNotification', 'watchNotification', 'showRow', 'release', 'closeToast',
   'closeToasts', 'unmarkLeaving', 'finishDeparted', 'newestLive', 'finishLeaving', 'finishClose', 'clearAll', 'dismissNewest', 'releaseHeld', 'restoreRows', 'actionsOf', 'dismissOne',
   'deedsFor', 'runDeed', 'invokeAction', 'invokeSenderAction', 'actOnNewest', 'act', 'clickable', 'activate', 'openWindows', 'windowForPid', 'focusWindow',
   'storePut', 'storeClose', 'storeDrop', 'storeRecord', 'saveSoon', 'loadLive']
@@ -370,6 +370,7 @@ function newCapacityScope() {
   s.service = s
   runIn(s, ...capacityFunctions)
   s.drainCallLater = () => { while (later.length) later.shift()() }
+  s.stepCallLater = () => later.shift()()
   s.fakeNotification = (id = 0, summary = 'Synthetic', urgency = 1) => {
     let tracked = false, destroyed = false
     const signal = () => {
@@ -809,6 +810,25 @@ for (const holding of [false, true]) { // Silencing closes a muted update; only 
     { key: 'newer', summary: 'Newer', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
   d.drainCallLater()
   assert.deepEqual(summaries(d.toasts.rows), ['Newer'])
+
+  // An update that moved a card to another tag counts from the moment it
+  // arrives, not from when the card is redrawn with it.
+  for (const steps of [0, 1]) {
+    const p = newCapacityScope()
+    const moved = Object.assign(p.fakeNotification(1, 'A', 1), { hints: { 'x-dunst-stack-tag': 'old' } })
+    p.admit(moved)
+    moved.replace({ summary: 'A moved', hints: { 'x-dunst-stack-tag': 'new' } })
+    for (let i = 0; i < steps; i++) p.stepCallLater()
+    p.admit(Object.assign(p.fakeNotification(2, 'B', 1), { hints: { 'x-dunst-stack-tag': 'old' } }))
+    assert.deepEqual(summaries(p.toasts.rows).sort(), ['A moved', 'B'])
+  }
+
+  // App and tag are matched as a pair, whatever characters either holds.
+  const k = newCapacityScope()
+  k.restoreRows([{ key: 'one', summary: 'One', app: 'a', urgency: 2, stackTag: 'b\nc' },
+    { key: 'two', summary: 'Two', app: 'a\nb', urgency: 2, stackTag: 'c' }], false)
+  k.drainCallLater()
+  assert.deepEqual(summaries(k.toasts.rows).sort(), ['One', 'Two'])
 }
 
 const storedRows = count => Array.from({ length: count }, (_, i) => ({ key: 'stored-' + i, summary: 'Stored ' + i }))

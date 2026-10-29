@@ -574,17 +574,31 @@ Item {
     return ""
   }
 
+  // The app and stack tag a card answers to. While its sender is live that is
+  // what the sender says now: an update that moved the card to another tag
+  // may not have reached the row yet. A restored card has only its row.
+  function stackIdentityOf(key, row) {
+    var sender = refs[key]
+    if (sender) return { app: Security.bounded(sender.appName, Security.MAX_APP_NAME),
+                         tag: Store.stackTagOf(sender.hints || {}).slice(0, Store.MAX_STACK_TAG) }
+    return row ? { app: row.app, tag: row.stackTag } : null
+  }
+
   // A card from the same app with the same stack tag: on screen, waiting to be
   // shown, or restored from an earlier session, which has no sender to match.
   function keyForStackTag(app, tag) {
     if (!tag) return ""
+    var sameStack = function(key, row) {
+      var identity = stackIdentityOf(key, row)
+      return !!identity && identity.tag === tag && identity.app === app
+    }
     for (var i = 0; i < toasts.count; i++) {
       var row = toasts.get(i)
-      if (row.stackTag === tag && row.app === app && !leaving[row.key]) return row.key
+      if (!leaving[row.key] && sameStack(row.key, row)) return row.key
     }
     for (var key in liveKeys) {
       var pending = liveKeys[key].row
-      if (pending && pending.stackTag === tag && pending.app === app) return key
+      if (pending && sameStack(key, pending)) return key
     }
     return ""
   }
