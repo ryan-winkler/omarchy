@@ -574,10 +574,29 @@ Item {
     return ""
   }
 
+  // A card from the same app with the same stack tag: on screen, waiting to be
+  // shown, or restored from an earlier session, which has no sender to match.
+  function keyForStackTag(app, tag) {
+    if (!tag) return ""
+    for (var i = 0; i < toasts.count; i++) {
+      var row = toasts.get(i)
+      if (row.stackTag === tag && row.app === app && !leaving[row.key]) return row.key
+    }
+    for (var key in liveKeys) {
+      var pending = liveKeys[key].row
+      if (pending && pending.stackTag === tag && pending.app === app) return key
+    }
+    return ""
+  }
+
   // ------------------------------------------------------------- arrival
   function handleNotification(notification) {
-    // Replacements reuse the same slot, including before its first insertion.
-    var key = keyForOriginal(notification.id) || nextKey()
+    // Replacements reuse the same slot, including before its first insertion,
+    // and so does a newer message under the same stack tag.
+    var tagged = Store.stackTagOf(notification.hints || {})
+    var key = keyForOriginal(notification.id)
+      || keyForStackTag(Security.bounded(notification.appName, Security.MAX_APP_NAME), tagged.slice(0, Store.MAX_STACK_TAG))
+      || nextKey()
 
     if (!reserveLive(key)) {
       notification.tracked = false
@@ -1323,6 +1342,9 @@ Item {
          replay ? i >= 0 : i < rows.length; i += replay ? -1 : 1) {
       var row = Store.restored(rows[i])
       if (!row) continue
+      // A newer message under the same stack tag arrived while the file was
+      // being read; the stored one is what it replaced.
+      if (!replay && keyForStackTag(row.app, row.stackTag)) continue
       if (liveKeys[row.key]) {
         // Startup must not overwrite a newer live arrival. Replaying the same
         // entry deliberately creates a separate card.

@@ -78,6 +78,14 @@ load
 [[ ${args[9]} == "42" ]] || fail "notification wrapper sets replaces_id from -r" "${args[9]}"
 pass "notification wrapper supports -p (print id) and -r (replace id)"
 
+# --tag survives a restart where -r cannot: it rides as dunst's stack tag.
+: >"$args_file"
+send --tag omarchy-migrations-pending "Pending migrations" "Click to run 2" >/dev/null
+load
+[[ $(hint_value x-dunst-stack-tag) == "omarchy-migrations-pending" ]] || fail "notification wrapper sets the stack tag hint from --tag" "$(hint_value x-dunst-stack-tag)"
+[[ ${args[12]} == "Click to run 2" ]] || fail "--tag takes only its value, not the description" "${args[12]}"
+pass "notification wrapper supports --tag (stack tag)"
+
 # Options may follow the headline and description (Taildrop appends -u critical
 # and -g after the two positionals); they still land on the call, and urgency
 # stays a single hint rather than doubling.

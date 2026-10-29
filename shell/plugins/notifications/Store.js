@@ -7,6 +7,20 @@
 
 var QSIMAGE = /^image:\/\/qsimage\/[0-9]+\/[0-9]+$/
 
+// A sender's stack tag, under any of the hints dunst reads it from: a later
+// message from the same app with the same tag replaces that card rather than
+// adding one, the way volume pop-ups or "pending updates" reminders expect.
+var STACK_TAG_HINTS = ["x-dunst-stack-tag", "x-canonical-private-synchronous", "synchronous", "private-synchronous"]
+var MAX_STACK_TAG = 128
+
+function stackTagOf(hints) {
+  for (var i = 0; i < STACK_TAG_HINTS.length; i++) {
+    var tag = hints[STACK_TAG_HINTS[i]]
+    if (typeof tag === "string" && tag) return tag
+  }
+  return ""
+}
+
 // Everything a card draws and a history entry needs, read defensively from an
 // arbitrary sender.
 function snapshot(n, key, urgencyEnum) {
@@ -45,6 +59,7 @@ function snapshot(n, key, urgencyEnum) {
     execActions: actions ? JSON.stringify(actions) : "",
     glyph: hints["omarchy-glyph"],
     transient: hints["transient"] === true || hints["transient"] === 1,
+    stackTag: stackTagOf(hints),
     app: raw.app,
     // Else the desktop-entry hint, which names the app's .desktop file and so,
     // usually, its icon. normalise() drops it when it is a path (Chrome's).
@@ -86,7 +101,7 @@ var RESTORE_GRACE = 20000
 // from the first row it sees and silently drops keys that row lacked, so every
 // row goes through normalise() and carries every field.
 var SHAPE = {
-  key: "", originalId: 0, senderPid: 0, execArgv: "", execActions: "", glyph: "", transient: false, app: "", appIcon: "", summary: "", body: "",
+  key: "", originalId: 0, senderPid: 0, execArgv: "", execActions: "", glyph: "", transient: false, stackTag: "", app: "", appIcon: "", summary: "", body: "",
   bodyRich: "", bodyLine: "", rawBody: "", source: "", groupKey: "", image: "",
   code: "", codes: "", link: "",
   urgency: 1, expireTimeout: 0, duration: 0, ts: 0,
@@ -102,6 +117,7 @@ function normalise(row) {
     else out[k] = value === true
   }
   out.app = out.app.slice(0, Security.MAX_APP_NAME)
+  out.stackTag = out.stackTag.slice(0, MAX_STACK_TAG)
   out.summary = out.summary.slice(0, Security.MAX_SUMMARY)
   out.source = out.source.slice(0, Security.MAX_SOURCE)
   out.appIcon = /^[a-zA-Z0-9_.-]{1,256}$/.test(out.appIcon) ? out.appIcon : ""
@@ -158,7 +174,7 @@ var HISTORY_ROW_CHARS = 4096
 // What a stored row keeps. Derived text is recomputed on restore; codes,
 // links and images never persist, so a stored row cannot assert a
 // capability.
-var STORED = ["key", "originalId", "senderPid", "execArgv", "execActions", "glyph", "app", "appIcon", "summary", "body",
+var STORED = ["key", "originalId", "senderPid", "execArgv", "execActions", "glyph", "stackTag", "app", "appIcon", "summary", "body",
               "rawBody", "source", "groupKey", "urgency", "expireTimeout", "duration", "ts"]
 
 function storedSize(row) { return JSON.stringify(row).length }

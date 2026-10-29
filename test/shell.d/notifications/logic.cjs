@@ -332,7 +332,7 @@ function runIn(scope, ...names) {
 // signals, the deferred event loop and external effects are faked.
 const capacityFunctions = ['pinDeckDisplay', 'showsOn', 'fullscreenOn',
   'durationFor', 'liveCount', 'reserveLive', 'releaseLive',
-  'nextKey', 'rowIndexFor', 'keyForOriginal', 'handleNotification', 'watchNotification', 'showRow', 'release', 'closeToast',
+  'nextKey', 'rowIndexFor', 'keyForOriginal', 'keyForStackTag', 'handleNotification', 'watchNotification', 'showRow', 'release', 'closeToast',
   'closeToasts', 'unmarkLeaving', 'finishDeparted', 'newestLive', 'finishLeaving', 'finishClose', 'clearAll', 'dismissNewest', 'releaseHeld', 'restoreRows', 'actionsOf', 'dismissOne',
   'deedsFor', 'runDeed', 'invokeAction', 'invokeSenderAction', 'actOnNewest', 'act', 'clickable', 'activate', 'openWindows', 'windowForPid', 'focusWindow',
   'storePut', 'storeClose', 'storeDrop', 'storeRecord', 'saveSoon', 'loadLive']
@@ -760,6 +760,29 @@ for (const holding of [false, true]) { // Silencing closes a muted update; only 
   s.drainCallLater()
   assert.equal(s.toasts.get(0).senderPid, 1234)
   assert.equal(s.toasts.count, 1)
+}
+
+{ // A stack tag keeps one card per app and tag, also across a login: the card
+  // restored from the last session is updated in place, not joined by a copy.
+  const s = newCapacityScope()
+  const tagged = (id, summary, app = 'Fixture', hint = 'x-dunst-stack-tag') =>
+    Object.assign(s.fakeNotification(id, summary, 2), { appName: app, hints: { [hint]: 'migrations' } })
+  s.restoreRows([{ key: 'last-login', summary: 'Pending (2)', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
+  s.drainCallLater()
+  s.admit(tagged(1, 'Pending (3)'))
+  assert.deepEqual(summaries(s.toasts.rows), ['Pending (3)'])
+  assert.equal(s.toasts.get(0).key, 'last-login')
+  s.admit(tagged(2, 'Pending (4)', 'Fixture', 'x-canonical-private-synchronous'))
+  assert.deepEqual(summaries(s.toasts.rows), ['Pending (4)'])
+  // Another app's tag, and an untagged message, are cards of their own.
+  s.admit(tagged(3, 'Elsewhere', 'Other'), s.fakeNotification(4, 'Untagged', 2))
+  assert.equal(s.toasts.count, 3)
+  // A stored row does not come back over a newer arrival with its tag.
+  const t = newCapacityScope()
+  t.admit(Object.assign(t.fakeNotification(1, 'Fresh', 2), { hints: { 'x-dunst-stack-tag': 'migrations' } }))
+  t.restoreRows([{ key: 'stale', summary: 'Stale', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
+  t.drainCallLater()
+  assert.deepEqual(summaries(t.toasts.rows), ['Fresh'])
 }
 
 const storedRows = count => Array.from({ length: count }, (_, i) => ({ key: 'stored-' + i, summary: 'Stored ' + i }))
