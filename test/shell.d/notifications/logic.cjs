@@ -822,6 +822,15 @@ for (const holding of [false, true]) { // Silencing closes a muted update; only 
     p.admit(Object.assign(p.fakeNotification(2, 'B', 1), { hints: { 'x-dunst-stack-tag': 'old' } }))
     assert.deepEqual(summaries(p.toasts.rows).sort(), ['A moved', 'B'])
   }
+  // Also when the sender has gone by then: the queued update still decides.
+  const g = newCapacityScope()
+  const gone = Object.assign(g.fakeNotification(1, 'A', 1), { hints: { 'x-dunst-stack-tag': 'old' } })
+  g.admit(gone)
+  gone.replace({ summary: 'A moved', hints: { 'x-dunst-stack-tag': 'new' } })
+  g.stepCallLater()
+  gone.dismiss()
+  g.admit(Object.assign(g.fakeNotification(2, 'B', 1), { hints: { 'x-dunst-stack-tag': 'old' } }))
+  assert.deepEqual(summaries(g.toasts.rows).sort(), ['A moved', 'B'])
 
   // App and tag are matched as a pair, whatever characters either holds.
   const k = newCapacityScope()

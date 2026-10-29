@@ -574,14 +574,16 @@ Item {
     return ""
   }
 
-  // The app and stack tag a card answers to. While its sender is live that is
-  // what the sender says now: an update that moved the card to another tag
-  // may not have reached the row yet. A restored card has only its row.
+  // The app and stack tag a card answers to: the newest word on it. While its
+  // sender is live that is what the sender says now, then an update already
+  // read but not yet drawn, then the row itself; an update that moved the card
+  // to another tag reaches the row one pass later.
   function stackIdentityOf(key, row) {
     var sender = refs[key]
     if (sender) return { app: Security.bounded(sender.appName, Security.MAX_APP_NAME),
                          tag: Store.stackTagOf(sender.hints || {}).slice(0, Store.MAX_STACK_TAG) }
-    return row ? { app: row.app, tag: row.stackTag } : null
+    var current = (liveKeys[key] && liveKeys[key].row) || row
+    return current ? { app: current.app, tag: current.stackTag } : null
   }
 
   // A card from the same app with the same stack tag: on screen, waiting to be
