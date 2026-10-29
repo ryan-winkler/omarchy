@@ -783,6 +783,32 @@ for (const holding of [false, true]) { // Silencing closes a muted update; only 
   t.restoreRows([{ key: 'stale', summary: 'Stale', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
   t.drainCallLater()
   assert.deepEqual(summaries(t.toasts.rows), ['Fresh'])
+
+  // A tag added by a replaces_id update is the card's tag from then on.
+  const u = newCapacityScope()
+  const progress = u.fakeNotification(7, 'Copying', 1)
+  u.admit(progress)
+  progress.replace({ hints: { 'x-dunst-stack-tag': 'copy' } })
+  u.drainCallLater()
+  u.admit(Object.assign(u.fakeNotification(8, 'Copied', 1), { hints: { 'x-dunst-stack-tag': 'copy' } }))
+  assert.deepEqual(summaries(u.toasts.rows), ['Copied'])
+
+  // A replayed history copy does not take the update meant for the live card.
+  const r = newCapacityScope()
+  r.admit(Object.assign(r.fakeNotification(1, 'Live', 2), { hints: { 'x-dunst-stack-tag': 'migrations' } }))
+  const live = r.toasts.get(0).key
+  r.restoreRows([{ key: 'old', summary: 'History', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], true)
+  r.drainCallLater()
+  r.admit(Object.assign(r.fakeNotification(2, 'Live again', 2), { hints: { 'x-dunst-stack-tag': 'migrations' } }))
+  assert.equal(r.toasts.rows.find(row => row.key === live).summary, 'Live again')
+  assert.equal(r.toasts.count, 2)
+
+  // Two stored rows under one tag come back as the newer one.
+  const d = newCapacityScope()
+  d.restoreRows([{ key: 'older', summary: 'Older', app: 'Fixture', urgency: 2, stackTag: 'migrations' },
+    { key: 'newer', summary: 'Newer', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
+  d.drainCallLater()
+  assert.deepEqual(summaries(d.toasts.rows), ['Newer'])
 }
 
 const storedRows = count => Array.from({ length: count }, (_, i) => ({ key: 'stored-' + i, summary: 'Stored ' + i }))

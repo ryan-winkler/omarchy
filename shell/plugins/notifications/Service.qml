@@ -1337,6 +1337,7 @@ Item {
   Component.onDestruction: flushStore()
 
   function restoreRows(rows, replay) {
+    if (!replay) rows = Store.newestPerStackTag(rows)
     // Restore is oldest first; history is newest first. Both insert at zero.
     for (var i = replay ? rows.length - 1 : 0;
          replay ? i >= 0 : i < rows.length; i += replay ? -1 : 1) {
@@ -1352,6 +1353,9 @@ Item {
         row.key = nextKey()
         row.groupKey = Markup.regroup(row)
       }
+      // A replayed entry is a copy to read, not the card its sender's tag
+      // names: a new message under that tag updates the live card.
+      if (replay) row.stackTag = ""
       if (!reserveLive(row.key)) break
       showRow(row)
     }

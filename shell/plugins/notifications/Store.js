@@ -80,7 +80,7 @@ function snapshot(n, key, urgencyEnum) {
 }
 
 // The fields an in-place update (replaces_id) must write through to the row.
-var ROLES = ["originalId", "senderPid", "execArgv", "execActions", "glyph", "transient", "app", "appIcon", "summary", "body", "rawBody", "bodyRich",
+var ROLES = ["originalId", "senderPid", "execArgv", "execActions", "glyph", "transient", "stackTag", "app", "appIcon", "summary", "body", "rawBody", "bodyRich",
              "bodyLine", "source", "groupKey", "image", "urgency",
              "expireTimeout", "duration", "ts",
              "code", "codes", "link"]
@@ -236,6 +236,17 @@ function liveEntry(entries, key) {
 
 function dropLive(entries, key) {
   return entries.filter(function(entry) { return entry.key !== key })
+}
+
+// Stored rows, oldest first, keeping only the newest per app and stack tag:
+// a later message under a tag replaced the earlier ones.
+function newestPerStackTag(entries) {
+  var last = {}
+  for (var i = 0; i < entries.length; i++)
+    if (entries[i] && entries[i].stackTag) last[entries[i].app + "\n" + entries[i].stackTag] = i
+  return entries.filter(function(entry, i) {
+    return !entry || !entry.stackTag || last[entry.app + "\n" + entry.stackTag] === i
+  })
 }
 
 // Rows read back at startup sit under any that arrived while the file was
