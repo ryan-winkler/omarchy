@@ -810,6 +810,13 @@ for (const holding of [false, true]) { // Silencing closes a muted update; only 
     { key: 'newer', summary: 'Newer', app: 'Fixture', urgency: 2, stackTag: 'migrations' }], false)
   d.drainCallLater()
   assert.deepEqual(summaries(d.toasts.rows), ['Newer'])
+  // Newer by time, not by place: a card updated in place keeps its earlier
+  // slot in the file.
+  const w = newCapacityScope()
+  w.restoreRows([{ key: 'updated', summary: 'Updated later', app: 'Fixture', urgency: 2, stackTag: 'migrations', ts: 2000 },
+    { key: 'other', summary: 'Older', app: 'Fixture', urgency: 2, stackTag: 'migrations', ts: 1000 }], false)
+  w.drainCallLater()
+  assert.deepEqual(summaries(w.toasts.rows), ['Updated later'])
 
   // An update that moved a card to another tag counts from the moment it
   // arrives, not from when the card is redrawn with it.

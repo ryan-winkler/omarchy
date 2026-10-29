@@ -239,15 +239,22 @@ function dropLive(entries, key) {
 }
 
 // Stored rows, oldest first, keeping only the newest per app and stack tag:
-// a later message under a tag replaced the earlier ones. The pair is encoded
-// as JSON, since either half may hold any character a joiner would.
+// a later message under a tag replaced the earlier ones. Newest by its time,
+// the later row on a tie: a card updated in place keeps its earlier slot in
+// the file. The pair is encoded as JSON, since either half may hold any
+// character a joiner would.
 function newestPerStackTag(entries) {
   var stackOf = function(entry) { return JSON.stringify([entry.app, entry.stackTag]) }
-  var last = {}
-  for (var i = 0; i < entries.length; i++)
-    if (entries[i] && entries[i].stackTag) last[stackOf(entries[i])] = i
+  var timeOf = function(entry) { return Number(entry.ts) || 0 }
+  var newest = {}
+  for (var i = 0; i < entries.length; i++) {
+    var entry = entries[i]
+    if (!entry || !entry.stackTag) continue
+    var stack = stackOf(entry)
+    if (newest[stack] === undefined || timeOf(entry) >= timeOf(entries[newest[stack]])) newest[stack] = i
+  }
   return entries.filter(function(entry, i) {
-    return !entry || !entry.stackTag || last[stackOf(entry)] === i
+    return !entry || !entry.stackTag || newest[stackOf(entry)] === i
   })
 }
 
