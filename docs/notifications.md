@@ -20,7 +20,7 @@ The JS modules also load in Node: `test/shell.d/notifications-test.sh` covers th
 
 ## Decks and the scene clock
 
-Each notification gets its own key (`n…`); the sender's id names a slot that `replaces_id` reuses, not an event. Cards group by source: per site for browser notifications (the leading `<a href>` Chromium adds is lifted off and becomes the source, but only from a browser and only for an http(s) href that passes the URL policy), per app name otherwise.
+Each notification gets its own key (`n…`); the sender's id names a slot that `replaces_id` reuses, not an event. A stack tag (`x-dunst-stack-tag`, or the `x-canonical-private-synchronous`, `synchronous` and `private-synchronous` hints dunst also reads) names a slot too: a message from the same app with the same tag takes over that card, including one restored from an earlier session, where `replaces_id` has no id left to match. The tag is stored with the card; a copy replayed from history carries none. Cards group by source: per site for browser notifications (the leading `<a href>` Chromium adds is lifted off and becomes the source, but only from a browser and only for an http(s) href that passes the URL policy), per app name otherwise.
 
 A collapsed deck draws its cards at the front card's height; hovering opens it. While the pointer is on an open deck, new cards are held back for at most 30 seconds. All positions, scales, opacities and heights come from one clock (`Service.at()`): a change snapshots the current state, recomputes the layout, and starts one move for every card. A leaving card keeps its model row until that move finishes.
 
@@ -99,6 +99,7 @@ flags map onto that call:
 | `--app-name` | `app_name` | defaults to `omarchy-action` |
 | `-u` / `--urgency` | hint `urgency` (byte) | `low`/`normal`/`critical`; defaults to `low` |
 | `-t` / `--expire-time` | `expire_timeout` | milliseconds on screen; server default otherwise |
+| `--tag` | hint `x-dunst-stack-tag` | a later message with the same tag replaces this card, also after a restart; for reminders that are sent again at every login |
 
 Unknown flags are a hard error, not a silent pass-through: `--exec` and `--action` are the only doors to a command, and there is no generic option pass-through to smuggle one through.
 
